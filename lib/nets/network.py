@@ -79,7 +79,7 @@ class Network(object):
       to_caffe = tf.transpose(bottom, [0, 3, 1, 2])
       # then force it to have channel 2
       reshaped = tf.reshape(to_caffe,
-                            tf.concat(axis=0, values=[[self._batch_size], [num_dim, -1], [input_shape[2]]]))
+                            tf.concat(0, [[self._batch_size], [num_dim, -1], [input_shape[2]]]))
       # then swap the channel back
       to_tf = tf.transpose(reshaped, [0, 2, 3, 1])
       return to_tf
@@ -133,7 +133,7 @@ class Network(object):
       y1 = tf.slice(rois, [0, 2], [-1, 1], name="y1") / height
       x2 = tf.slice(rois, [0, 3], [-1, 1], name="x2") / width
       y2 = tf.slice(rois, [0, 4], [-1, 1], name="y2") / height
-      bboxes = tf.concat([y1, x1, y2, x2], axis=1)
+      bboxes = tf.concat(1, [y1, x1, y2, x2])
       pre_pool_size = cfg.POOLING_SIZE * 2
       crops = tf.image.crop_and_resize(bottom, bboxes, tf.to_int32(batch_ids), [pre_pool_size, pre_pool_size], name="crops")
 
