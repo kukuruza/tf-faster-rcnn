@@ -33,7 +33,6 @@ def parse_args():
                       default='data/imagenet_models/VGG16.v2.caffemodel')
   parser.add_argument('--cfg', dest='cfg_file',
                       help='optional config file')
-                      #default='experiments/cfgs/faster_rcnn_end2end.yml')
   parser.add_argument('--imdb', dest='imdb_name',
                       help='dataset to train on',
                       default='vehicle', type=str)
@@ -43,7 +42,7 @@ def parse_args():
   parser.add_argument('--db_val_path',
                       help='full path to .db file',
                       required=True)
-  parser.add_argument('--out_name', required=True,
+  parser.add_argument('--out_model_dir', required=True,
                       help='relative to "output"')
   parser.add_argument('--iters', dest='max_iters',
                       help='number of iterations to train',
@@ -98,11 +97,11 @@ if __name__ == '__main__':
   print('{:d} roidb entries'.format(len(roidb)))
 
   # output directory where the models are saved
-  output_dir = get_output_dir(args.out_name)
+  output_dir = get_output_dir(args.out_model_dir)
   print('Output will be saved to `{:s}`'.format(output_dir))
 
   # tensorboard directory where he summaries are saved during training
-  tb_dir = get_output_tb_dir(args.out_name)
+  tb_dir = get_output_tb_dir(args.out_model_dir)
   print('TensorFlow summaries will be saved to `{:s}`'.format(tb_dir))
 
   # also add the validation set, but with no flipping images

@@ -198,6 +198,9 @@ __C.TEST.MODE = 'nms'
 # Only useful when TEST.MODE is 'top', specifies the number of top proposals to select
 __C.TEST.RPN_TOP_N = 5000
 
+__C.TEST.CAR_CONSTRAINT = '1'
+
+
 #
 # ResNet options
 #
@@ -275,7 +278,7 @@ def get_output_tb_dir(out_name):
     """Make output path in the root of output.
     If the directory does not exist, it is created.
     """
-    outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'tensorboard', out_name))
+    outdir = osp.abspath(osp.join(__C.ROOT_DIR, '../tensorboard', out_name))
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     return outdir

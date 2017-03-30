@@ -144,14 +144,14 @@ def apply_nms(all_boxes, thresh):
       nms_boxes[cls_ind][im_ind] = dets[keep, :].copy()
   return nms_boxes
 
-def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05):
+def test_net(sess, net, imdb, out_db_path=':memory:', max_per_image=100, thresh=0.05):
   np.random.seed(cfg.RNG_SEED)
   """Test a Fast R-CNN network on an image database."""
   num_images = imdb.num_images()
   all_boxes = [[[] for _ in range(num_images)]
          for _ in range(imdb.num_classes)]
 
-  output_dir = get_output_dir(imdb, weights_filename)
+  #output_dir = get_output_dir(imdb, weights_filename)
   # timers
   _t = {'im_detect' : Timer(), 'misc' : Timer()}
 
@@ -200,12 +200,12 @@ def test_net(sess, net, imdb, weights_filename, max_per_image=100, thresh=0.05):
              roi[0], roi[1], roi[2]-roi[0], roi[3]-roi[1])
         c_out.execute('INSERT INTO cars(%s) VALUES (?,?,?,?,?,?,?)' % s, v)
 
-    print 'im_detect: {:d}/{:d} {:.3f}s. Found {:d} objects.' \
-          .format(imid+1, num_images, timer.average_time, len(cls_dets))
+    print ('im_detect: {:d}/{:d} {:.3f}s. Found {:d} objects.' \
+          .format(imid+1, num_images, _t['im_detect'].average_time, len(cls_dets)))
 
   conn_out.commit()
 
-  print 'Evaluating detections'
+  print ('Evaluating detections')
   ap = imdb.evaluate_detections(c_det=c_out)
 
   conn_out.close()

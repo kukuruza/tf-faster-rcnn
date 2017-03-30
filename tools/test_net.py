@@ -26,26 +26,28 @@ def parse_args():
   parser = argparse.ArgumentParser(description='Test a Fast R-CNN network')
   parser.add_argument('--cfg', dest='cfg_file',
             help='optional config file', default=None, type=str)
-  parser.add_argument('--model', dest='model',
-            help='model to test',
-            default=None, type=str)
+  parser.add_argument('--in_model_file',
+            help='trained model weights',
+            required=True, type=str)
   parser.add_argument('--imdb', dest='imdb_name',
             help='dataset to test',
-            default='voc_2007_test', type=str)
+            default='vehicle', type=str)
+  parser.add_argument('--gt_db_path',
+            help='full path to ground truth .db file',
+            required=True)
+  parser.add_argument('--out_db_path', default=':memory:',
+            help='filepath of output database. Default is in-memory')
   parser.add_argument('--comp', dest='comp_mode', help='competition mode',
             action='store_true')
   parser.add_argument('--num_dets', dest='max_per_image',
             help='max number of detections per image',
             default=100, type=int)
-  parser.add_argument('--tag', dest='tag',
-                        help='tag of the model',
-                        default='', type=str)
   parser.add_argument('--net', dest='net',
-                      help='vgg16 or res101',
-                      default='res101', type=str)
+            help='vgg16 or res101',
+            default='res101', type=str)
   parser.add_argument('--set', dest='set_cfgs',
-                        help='set config keys', default=None,
-                        nargs=argparse.REMAINDER)
+            help='set config keys', default=None,
+            nargs=argparse.REMAINDER)
 
   if len(sys.argv) == 1:
     parser.print_help()
@@ -68,19 +70,8 @@ if __name__ == '__main__':
   print('Using config:')
   pprint.pprint(cfg)
 
-  # if has model, get the name from it
-  # if does not, then just use the inialization weights
-  if args.model:
-    filename = os.path.splitext(os.path.basename(args.model))[0]
-  else:
-    filename = os.path.splitext(os.path.basename(args.weight))[0]
-
-  tag = args.tag
-  tag = tag if tag else 'default'
-  filename = tag + '/' + filename
-
-  imdb = get_imdb(args.imdb_name)
-  imdb.competition_mode(args.comp_mode)
+  imdb = get_imdb(args.imdb_name, args.gt_db_path)
+  #imdb.competition_mode(args.comp_mode)
 
   tfconfig = tf.ConfigProto(allow_soft_placement=True)
   tfconfig.gpu_options.allow_growth=True
@@ -94,25 +85,21 @@ if __name__ == '__main__':
     net = Resnet101(batch_size=1)
   else:
     raise NotImplementedError
-  # load model
-  if imdb.name.startswith('voc'):
-    anchors = [8, 16, 32]
-  else:
-    anchors = [4, 8, 16, 32]
+  anchors = [4, 8, 16, 32]
 
   net.create_architecture(sess, "TEST", imdb.num_classes,  
                           tag='default', anchor_scales=anchors)
 
-  if args.model:
-    print(('Loading model check point from {:s}').format(args.model))
+  if args.in_model_file:
+    print(('Loading model check point from {:s}').format(args.in_model_file))
     saver = tf.train.Saver()
-    saver.restore(sess, args.model)
+    saver.restore(sess, args.in_model_file)
     print('Loaded.')
   else:
     print(('Loading initial weights from {:s}').format(args.weight))
     sess.run(tf.global_variables_initializer())
     print('Loaded.')
 
-  test_net(sess, net, imdb, filename, max_per_image=args.max_per_image)
+  test_net(sess, net, imdb, args.out_db_path, max_per_image=args.max_per_image)
 
   sess.close()
