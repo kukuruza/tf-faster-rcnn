@@ -83,7 +83,7 @@ __C.TRAIN.BG_THRESH_HI = 0.5
 __C.TRAIN.BG_THRESH_LO = 0.1
 
 # Use horizontally-flipped images during training?
-__C.TRAIN.USE_FLIPPED = True
+__C.TRAIN.USE_FLIPPED = False  # db-s don't like flipped
 
 # Train bounding-box regressors
 __C.TRAIN.BBOX_REG = True
@@ -262,37 +262,23 @@ __C.POOLING_MODE = 'crop'
 __C.POOLING_SIZE = 7
 
 
-def get_output_dir(imdb, weights_filename):
-  """Return the directory where experimental artifacts are placed.
-  If the directory does not exist, it is created.
+def get_output_dir(out_name):
+    """Make output path in the root of output.
+    If the directory does not exist, it is created.
+    """
+    outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', out_name))
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    return outdir
 
-  A canonical path is built using the name from an imdb and a network
-  (if not None).
-  """
-  outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', __C.EXP_DIR, imdb.name))
-  if weights_filename is None:
-    weights_filename = 'default'
-  outdir = osp.join(outdir, weights_filename)
-  if not os.path.exists(outdir):
-    os.makedirs(outdir)
-  return outdir
-
-
-def get_output_tb_dir(imdb, weights_filename):
-  """Return the directory where tensorflow summaries are placed.
-  If the directory does not exist, it is created.
-
-  A canonical path is built using the name from an imdb and a network
-  (if not None).
-  """
-  outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'tensorboard', __C.EXP_DIR, imdb.name))
-  if weights_filename is None:
-    weights_filename = 'default'
-  outdir = osp.join(outdir, weights_filename)
-  if not os.path.exists(outdir):
-    os.makedirs(outdir)
-  return outdir
-
+def get_output_tb_dir(out_name):
+    """Make output path in the root of output.
+    If the directory does not exist, it is created.
+    """
+    outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'tensorboard', out_name))
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    return outdir
 
 def _merge_a_into_b(a, b):
   """Merge config dictionary a into config dictionary b, clobbering the

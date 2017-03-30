@@ -15,6 +15,10 @@ from roi_data_layer.minibatch import get_minibatch
 import numpy as np
 import time
 
+import sys, os
+sys.path.insert(0, os.path.join(os.getenv('CITY_PATH'), 'src'))
+from learning.helperImg import ReaderVideo
+
 class RoIDataLayer(object):
   """Fast R-CNN data layer used for training."""
 
@@ -25,6 +29,7 @@ class RoIDataLayer(object):
     # Also set a random flag
     self._random = random
     self._shuffle_roidb_inds()
+    self._reader = ReaderVideo()
 
   def _shuffle_roidb_inds(self):
     """Randomly permute the training roidb."""
@@ -77,7 +82,7 @@ class RoIDataLayer(object):
     """
     db_inds = self._get_next_minibatch_inds()
     minibatch_db = [self._roidb[i] for i in db_inds]
-    return get_minibatch(minibatch_db, self._num_classes)
+    return get_minibatch(minibatch_db, self._reader, self._num_classes)
       
   def forward(self):
     """Get blobs and copy them into this layer's top blob vector."""

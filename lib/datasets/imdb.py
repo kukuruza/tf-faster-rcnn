@@ -83,9 +83,9 @@ class imdb(object):
 
   @property
   def num_images(self):
-    return len(self.image_index)
+    raise NotImplementedError
 
-  def image_path_at(self, i):
+  def get_image_at(self, i):
     raise NotImplementedError
 
   def default_roidb(self):
@@ -103,11 +103,10 @@ class imdb(object):
     raise NotImplementedError
 
   def _get_widths(self):
-    return [PIL.Image.open(self.image_path_at(i)).size[0]
-            for i in range(self.num_images)]
+    raise NotImplementedError
 
   def append_flipped_images(self):
-    num_images = self.num_images
+    num_images = self.num_images()
     widths = self._get_widths()
     for i in range(num_images):
       boxes = self.roidb[i]['boxes'].copy()

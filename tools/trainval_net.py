@@ -13,6 +13,7 @@ from model.config import cfg, cfg_from_file, cfg_from_list, get_output_dir, get_
 from datasets.factory import get_imdb
 import datasets.imdb
 import argparse
+import logging
 import pprint
 import numpy as np
 import sys
@@ -27,24 +28,26 @@ def parse_args():
   Parse input arguments
   """
   parser = argparse.ArgumentParser(description='Train a Fast R-CNN network')
-  parser.add_argument('--cfg', dest='cfg_file',
-                      help='optional config file',
-                      default=None, type=str)
-  parser.add_argument('--weight', dest='weight',
+  parser.add_argument('--weight',
                       help='initialize with pretrained model weights',
-                      type=str)
+                      default='data/imagenet_models/VGG16.v2.caffemodel')
+  parser.add_argument('--cfg', dest='cfg_file',
+                      help='optional config file')
+                      #default='experiments/cfgs/faster_rcnn_end2end.yml')
   parser.add_argument('--imdb', dest='imdb_name',
                       help='dataset to train on',
-                      default='kitti_train', type=str)
-  parser.add_argument('--imdbval', dest='imdbval_name',
-                      help='dataset to validate on',
-                      default='kitti_valid', type=str)
+                      default='vehicle', type=str)
+  parser.add_argument('--db_path',
+                      help='full path to .db file',
+                      required=True)
+  parser.add_argument('--db_val_path',
+                      help='full path to .db file',
+                      required=True)
+  parser.add_argument('--out_name', required=True,
+                      help='relative to "output"')
   parser.add_argument('--iters', dest='max_iters',
                       help='number of iterations to train',
                       default=70000, type=int)
-  parser.add_argument('--tag', dest='tag',
-                      help='tag of the model',
-                      default=None, type=str)
   parser.add_argument('--net', dest='net',
                       help='vgg16 or res101',
                       default='res101', type=str)
@@ -60,29 +63,18 @@ def parse_args():
   return args
 
 
-def combined_roidb(imdb_names):
-  """
-  Combine multiple roidbs
-  """
+def combined_roidb(imdb_name, db_path):
+    def get_roidb(imdb_name, db_path):
+        imdb = get_imdb(imdb_name, db_path)
+        logging.info('Loaded dataset `%s` for training' % imdb.name)
+        imdb.set_proposal_method(cfg.TRAIN.PROPOSAL_METHOD)
+        logging.info('Set proposal method: %s' % cfg.TRAIN.PROPOSAL_METHOD)
+        roidb = get_training_roidb(imdb)
+        return roidb
 
-  def get_roidb(imdb_name):
-    imdb = get_imdb(imdb_name)
-    print('Loaded dataset `{:s}` for training'.format(imdb.name))
-    imdb.set_proposal_method(cfg.TRAIN.PROPOSAL_METHOD)
-    print('Set proposal method: {:s}'.format(cfg.TRAIN.PROPOSAL_METHOD))
-    roidb = get_training_roidb(imdb)
-    return roidb
-
-  roidbs = [get_roidb(s) for s in imdb_names.split('+')]
-  roidb = roidbs[0]
-  if len(roidbs) > 1:
-    for r in roidbs[1:]:
-      roidb.extend(r)
-    tmp = get_imdb(imdb_names.split('+')[1])
-    imdb = datasets.imdb.imdb(imdb_names, tmp.classes)
-  else:
-    imdb = get_imdb(imdb_names)
-  return imdb, roidb
+    roidb = get_roidb(imdb_name, db_path)
+    imdb  = get_imdb(imdb_name, db_path)
+    return imdb, roidb
 
 
 if __name__ == '__main__':
@@ -102,23 +94,21 @@ if __name__ == '__main__':
   np.random.seed(cfg.RNG_SEED)
 
   # train set
-  imdb, roidb = combined_roidb(args.imdb_name)
+  imdb, roidb = combined_roidb(args.imdb_name, args.db_path)
   print('{:d} roidb entries'.format(len(roidb)))
 
   # output directory where the models are saved
-  output_dir = get_output_dir(imdb, args.tag)
+  output_dir = get_output_dir(args.out_name)
   print('Output will be saved to `{:s}`'.format(output_dir))
 
-  # tensorboard directory where the summaries are saved during training
-  tb_dir = get_output_tb_dir(imdb, args.tag)
+  # tensorboard directory where he summaries are saved during training
+  tb_dir = get_output_tb_dir(args.out_name)
   print('TensorFlow summaries will be saved to `{:s}`'.format(tb_dir))
 
   # also add the validation set, but with no flipping images
-  orgflip = cfg.TRAIN.USE_FLIPPED
-  cfg.TRAIN.USE_FLIPPED = False
-  _, valroidb = combined_roidb(args.imdbval_name)
+  _, valroidb = combined_roidb(args.imdb_name, args.db_val_path)
   print('{:d} validation roidb entries'.format(len(valroidb)))
-  cfg.TRAIN.USE_FLIPPED = orgflip
+
   if args.net == 'vgg16':
     net = vgg16(batch_size=cfg.TRAIN.IMS_PER_BATCH)
   elif args.net == 'res101':
@@ -128,3 +118,4 @@ if __name__ == '__main__':
   train_net(net, imdb, roidb, valroidb, output_dir, tb_dir,
             pretrained_model=args.weight,
             max_iters=args.max_iters)
+
