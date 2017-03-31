@@ -74,6 +74,10 @@ class imdb(object):
     self._roidb = self.roidb_handler()
     return self._roidb
 
+  @roidb.setter
+  def roidb(self, val):
+    self._roidb = val
+
   @property
   def cache_path(self):
     cache_path = osp.abspath(osp.join(cfg.DATA_DIR, 'cache'))

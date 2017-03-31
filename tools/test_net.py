@@ -12,6 +12,7 @@ from model.test import test_net
 from model.config import cfg, cfg_from_file, cfg_from_list
 from datasets.factory import get_imdb
 import argparse
+import logging
 import pprint
 import time, os, sys
 
@@ -19,13 +20,11 @@ import tensorflow as tf
 from nets.vgg16 import vgg16
 from nets.res101 import Resnet101
 
-def parse_args():
+def parse_args(arg_list):
   """
   Parse input arguments
   """
   parser = argparse.ArgumentParser(description='Test a Fast R-CNN network')
-  parser.add_argument('--cfg', dest='cfg_file',
-            help='optional config file', default=None, type=str)
   parser.add_argument('--in_model_file',
             help='trained model weights',
             required=True, type=str)
@@ -37,33 +36,35 @@ def parse_args():
             required=True)
   parser.add_argument('--out_db_path', default=':memory:',
             help='filepath of output database. Default is in-memory')
-  parser.add_argument('--comp', dest='comp_mode', help='competition mode',
-            action='store_true')
+  #parser.add_argument('--comp', dest='comp_mode', help='competition mode',
+  #          action='store_true')
   parser.add_argument('--num_dets', dest='max_per_image',
             help='max number of detections per image',
             default=100, type=int)
-  parser.add_argument('--net', dest='net',
-            help='vgg16 or res101',
+  parser.add_argument('--architecture', dest='net',
+            choices=['vgg16', 'res101'],
             default='res101', type=str)
   parser.add_argument('--set', dest='set_cfgs',
             help='set config keys', default=None,
             nargs=argparse.REMAINDER)
+  parser.add_argument('--logging_level', default=20, type=int)
 
-  if len(sys.argv) == 1:
-    parser.print_help()
-    sys.exit(1)
-
-  args = parser.parse_args()
+  args = parser.parse_args(arg_list)
   return args
 
-if __name__ == '__main__':
-  args = parse_args()
+def main(args_list):
+  args = parse_args(args_list)
+  logging.basicConfig(level=args.logging_level)
 
   print('Called with args:')
   print(args)
 
-  if args.cfg_file is not None:
-    cfg_from_file(args.cfg_file)
+  if args.net == 'vgg16':
+    cfg_file = 'experiments/cfgs/vgg16.yml'
+  elif args.net == 'res101':
+    cfg_file = 'experiments/cfgs/res101.yml'
+  
+  cfg_from_file(cfg_file)
   if args.set_cfgs is not None:
     cfg_from_list(args.set_cfgs)
 
@@ -90,16 +91,17 @@ if __name__ == '__main__':
   net.create_architecture(sess, "TEST", imdb.num_classes,  
                           tag='default', anchor_scales=anchors)
 
-  if args.in_model_file:
-    print(('Loading model check point from {:s}').format(args.in_model_file))
-    saver = tf.train.Saver()
-    saver.restore(sess, args.in_model_file)
-    print('Loaded.')
-  else:
-    print(('Loading initial weights from {:s}').format(args.weight))
-    sess.run(tf.global_variables_initializer())
-    print('Loaded.')
+  print(('Loading model check point from {:s}').format(args.in_model_file))
+  saver = tf.train.Saver()
+  saver.restore(sess, args.in_model_file)
+  print('Loaded.')
 
   test_net(sess, net, imdb, args.out_db_path, max_per_image=args.max_per_image)
 
   sess.close()
+
+
+if __name__ == '__main__':
+  args_list = sys.argv[1:]
+  main(args_list)
+

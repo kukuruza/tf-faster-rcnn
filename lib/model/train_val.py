@@ -16,7 +16,7 @@ try:
 except ImportError:
   import pickle
 import numpy as np
-import os
+import os, os.path as op
 import sys
 import glob
 import time
@@ -50,13 +50,13 @@ class SolverWrapper(object):
       os.makedirs(self.output_dir)
 
     # Store the model snapshot
-    filename = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(iter) + '.ckpt'
+    filename = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:06d}'.format(iter) + '.ckpt'
     filename = os.path.join(self.output_dir, filename)
     self.saver.save(sess, filename)
     print('Wrote snapshot to: {:s}'.format(filename))
 
     # Also store some meta information, random state, etc.
-    nfilename = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:d}'.format(iter) + '.pkl'
+    nfilename = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:06d}'.format(iter) + '.pkl'
     nfilename = os.path.join(self.output_dir, nfilename)
     # current state of numpy random
     st0 = np.random.get_state()
@@ -299,8 +299,18 @@ class SolverWrapper(object):
     self.valwriter.close()
 
 
-def get_training_roidb(imdb):
+def get_training_roidb(imdb, cache_path):
   """Returns a roidb (Region of Interest database) for use in training."""
+
+  if op.isfile(cache_path):
+    try:
+      print('Reading from cache: %s' % cache_path)
+      with open(cache_path, 'rb') as fid:
+        imdb.roidb = pickle.load(fid)
+      return imdb.roidb
+    except:
+      print('Error reading from cache: %s. Will re-prepare' % cache_path)
+
   if cfg.TRAIN.USE_FLIPPED:
     print('Appending horizontally-flipped training examples...')
     imdb.append_flipped_images()
@@ -309,6 +319,10 @@ def get_training_roidb(imdb):
   print('Preparing training data...')
   rdl_roidb.prepare_roidb(imdb)
   print('done')
+
+  print('Writing to cache: %s' % cache_path)
+  with open(cache_path, 'wb') as fid:
+    pickle.dump(imdb.roidb, fid, pickle.HIGHEST_PROTOCOL)
 
   return imdb.roidb
 

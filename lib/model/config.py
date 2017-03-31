@@ -97,8 +97,8 @@ __C.TRAIN.SNAPSHOT_ITERS = 5000
 
 # solver.prototxt specifies the snapshot path prefix, this adds an optional
 # infix to yield the path: <prefix>[_<infix>]_iters_XYZ.caffemodel
-__C.TRAIN.SNAPSHOT_PREFIX = 'res101_faster_rcnn'
-# __C.TRAIN.SNAPSHOT_INFIX = ''
+# __C.TRAIN.SNAPSHOT_PREFIX = 'res101_faster_rcnn'
+__C.TRAIN.SNAPSHOT_PREFIX = ''
 
 # Use a prefetch thread in roi_data_layer.layer
 # So far I haven't found this useful; likely more engineering work is required
@@ -278,7 +278,7 @@ def get_output_tb_dir(out_name):
     """Make output path in the root of output.
     If the directory does not exist, it is created.
     """
-    outdir = osp.abspath(osp.join(__C.ROOT_DIR, '../tensorboard', out_name))
+    outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'tensorboard', out_name))
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     return outdir
@@ -336,7 +336,7 @@ def cfg_from_list(cfg_list):
       assert subkey in d
       d = d[subkey]
     subkey = key_list[-1]
-    assert subkey in d
+    assert subkey in d, subkey
     try:
       value = literal_eval(v)
     except:
