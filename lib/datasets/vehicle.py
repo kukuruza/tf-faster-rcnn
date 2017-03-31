@@ -60,18 +60,6 @@ class vehicle(imdb):
         width = self.c.fetchone()[0]
         widths.append(width)
 
-
-#  def get_imagefile_at(self, i):
-#    self.c.execute('SELECT imagefile FROM images')
-#    return self.c.fetchall()[i][0]
-
-
-#  def get_imagefiles(self):
-#    self.c.execute('SELECT imagefile FROM images')
- #   for imagefile, in self.c.fetchall()[i]:
- #     yield imagefile
-
-
   def gt_roidb(self):
     """
     Return the database of ground-truth regions of interest.
@@ -81,9 +69,11 @@ class vehicle(imdb):
     for (imagefile,) in self.imagefiles:
 
       self.c.execute('SELECT x1,y1,width,height FROM cars '
-                     'WHERE imagefile=?', (imagefile,))
+                     'WHERE imagefile=? AND (%s)' % cfg.TRAIN.CAR_CONSTRAINT,
+                     (imagefile,))
       entries = self.c.fetchall()
       num_objs = len(entries)
+      logging.debug('%d boxes for %s' % (num_objs, imagefile))
 
       boxes = np.zeros((num_objs, 4), dtype=np.uint16)
       gt_classes = np.zeros((num_objs), dtype=np.int32)
