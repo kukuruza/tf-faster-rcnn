@@ -13,60 +13,86 @@ from __future__ import division
 from __future__ import print_function
 
 import _init_paths
-from model.test import apply_nms
-from model.config import cfg
+from model.config import cfg, cfg_from_file, cfg_from_list
 from datasets.factory import get_imdb
-import pickle
+from utils.loggers import setup_logging
 import os, sys, argparse
 import numpy as np
+import logging
+import sqlite3
+import pprint
 
 
-def parse_args():
+def parse_args(arg_list):
   """
   Parse input arguments
   """
   parser = argparse.ArgumentParser(description='Re-evaluate results')
-  parser.add_argument('output_dir', nargs=1, help='results directory',
-                      type=str)
+  parser.add_argument('--gt_db_path',
+            help='full path to ground truth .db file',
+            required=True)
+  parser.add_argument('--out_db_path', required=True,
+            help='filepath of output database.')
+  parser.add_argument('--results_path',
+            help='if specified, results will be appended to that file')
   parser.add_argument('--imdb', dest='imdb_name',
-                      help='dataset to re-evaluate',
-                      default='voc_2007_test', type=str)
-  parser.add_argument('--matlab', dest='matlab_eval',
-                      help='use matlab for evaluation',
-                      action='store_true')
-  parser.add_argument('--comp', dest='comp_mode', help='competition mode',
-                      action='store_true')
-  parser.add_argument('--nms', dest='apply_nms', help='apply nms',
-                      action='store_true')
+            help='dataset to test',
+            default='vehicle', type=str)
+  parser.add_argument('--architecture', dest='net',
+            choices=['vgg16', 'res101'],
+            default='vgg16', type=str)
+  #parser.add_argument('--comp', dest='comp_mode', help='competition mode',
+  #          action='store_true')
+  parser.add_argument('--set', dest='set_cfgs',
+            help='set config keys', default=None,
+            nargs=argparse.REMAINDER)
 
-  if len(sys.argv) == 1:
-    parser.print_help()
-    sys.exit(1)
+  # parse_known_args since the function can be called from a pipeline
+  args, _ = parser.parse_known_args(arg_list)
 
-  args = parser.parse_args()
+  print('Called with args:')
+  print(args)
+
   return args
 
 
-def from_dets(imdb_name, output_dir, args):
-  imdb = get_imdb(imdb_name)
-  imdb.competition_mode(args.comp_mode)
-  imdb.config['matlab_eval'] = args.matlab_eval
-  with open(os.path.join(output_dir, 'detections.pkl'), 'rb') as f:
-    dets = pickle.load(f)
+def main(arg_list):
+  args = parse_args(arg_list)
 
-  if args.apply_nms:
-    print('Applying NMS to all detections')
-    nms_dets = apply_nms(dets, cfg.TEST.NMS)
-  else:
-    nms_dets = dets
+  if args.net == 'vgg16':
+    cfg_file = 'experiments/cfgs/vgg16.yml'
+  elif args.net == 'res101':
+    cfg_file = 'experiments/cfgs/res101.yml'
+  
+  cfg_from_file(cfg_file)
+  if args.set_cfgs is not None:
+    cfg_from_list(args.set_cfgs)
 
-  print('Evaluating detections')
-  imdb.evaluate_detections(nms_dets, output_dir)
+  print('Using config:')
+  pprint.pprint(cfg)
+
+  imdb = get_imdb(args.imdb_name, args.gt_db_path)
+
+  conn_out = sqlite3.connect(args.out_db_path)
+  c_out = conn_out.cursor()
+  print ('Evaluating detections')
+  mAP, recalls, precisions = imdb.evaluate_detections(c_det=c_out)
+  conn_out.close()
+
+  if args.results_path is not None:
+    with open(args.results_path, 'a') as fid:
+      fid.write('car_constraint: %s\n' % cfg.TEST.CAR_CONSTRAINT)
+      fid.write('%.4f\n' % mAP)
+      for i in range(len(recalls)):
+        # each recall, precision is a class
+        fid.write('%s\n' % recalls[i].tolist())
+        fid.write('%s\n' % precisions[i].tolist())
+
+  return mAP
 
 
 if __name__ == '__main__':
-  args = parse_args()
+  arg_list = sys.argv[1:]
+  arg_list = setup_logging(arg_list)
+  main(arg_list)
 
-  output_dir = os.path.abspath(args.output_dir[0])
-  imdb_name = args.imdb_name
-  from_dets(imdb_name, output_dir, args)

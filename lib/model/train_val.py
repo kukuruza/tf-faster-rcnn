@@ -11,6 +11,7 @@ from model.config import cfg
 import roi_data_layer.roidb as rdl_roidb
 from roi_data_layer.layer import RoIDataLayer
 from utils.timer import Timer
+from utils.loggers import print_to_tqdm
 try:
   import cPickle as pickle
 except ImportError:
@@ -20,6 +21,8 @@ import os, os.path as op
 import sys
 import glob
 import time
+from tqdm import trange, tqdm
+import logging
 
 import tensorflow as tf
 from tensorflow.python import pywrap_tensorflow
@@ -223,10 +226,17 @@ class SolverWrapper(object):
         else:
           sess.run(tf.assign(lr, cfg.TRAIN.LEARNING_RATE))
 
+    log = logging.getLogger (__name__)
+    log.setLevel (logging.INFO)
+    from utils.loggers import TqdmLoggingHandler
+    log.addHandler (TqdmLoggingHandler ())
+
     timer = Timer()
-    iter = last_snapshot_iter + 1
     last_summary_time = time.time()
-    while iter < max_iters + 1:
+
+    t = trange(last_snapshot_iter + 1, max_iters + 1)
+    for iter in t:
+
       # Learning rate
       if iter == cfg.TRAIN.STEPSIZE + 1:
         # Add snapshot here before reducing the learning rate
@@ -256,10 +266,10 @@ class SolverWrapper(object):
 
       # Display training information
       if iter % (cfg.TRAIN.DISPLAY) == 0:
-        print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
-              '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
-              (iter, max_iters, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
-        print('speed: {:.3f}s / iter'.format(timer.average_time))
+#        print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
+#              '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
+#              (iter, max_iters, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
+        print_to_tqdm (t, 'lr: %f, speed: %.3fs / iter' % (lr.eval(), timer.average_time))
 
       if iter % cfg.TRAIN.SNAPSHOT_ITERS == 0:
         last_snapshot_iter = iter
@@ -290,8 +300,6 @@ class SolverWrapper(object):
             os.remove(str(sfile_meta))
             ss_paths.remove(sfile)
 
-      iter += 1
-
     if last_snapshot_iter != iter - 1:
       self.snapshot(sess, iter - 1)
 
@@ -304,23 +312,21 @@ def get_training_roidb(imdb, cache_path):
 
   if op.isfile(cache_path):
     try:
-      print('Reading from cache: %s' % cache_path)
+      logging.info('Reading from cache: %s' % cache_path)
       with open(cache_path, 'rb') as fid:
         imdb.roidb = pickle.load(fid)
       return imdb.roidb
     except:
-      print('Error reading from cache: %s. Will re-prepare' % cache_path)
+      logging.error('Error reading from cache: %s. Will re-prepare' % cache_path)
 
   if cfg.TRAIN.USE_FLIPPED:
-    print('Appending horizontally-flipped training examples...')
+    logging.info('Appending horizontally-flipped training examples...')
     imdb.append_flipped_images()
-    print('done')
 
-  print('Preparing training data...')
+  logging.info('Preparing training data...')
   rdl_roidb.prepare_roidb(imdb)
-  print('done')
 
-  print('Writing to cache: %s' % cache_path)
+  logging.info('Writing to cache: %s' % cache_path)
   with open(cache_path, 'wb') as fid:
     pickle.dump(imdb.roidb, fid, pickle.HIGHEST_PROTOCOL)
 
@@ -347,7 +353,7 @@ def filter_roidb(roidb):
   num = len(roidb)
   filtered_roidb = [entry for entry in roidb if is_valid(entry)]
   num_after = len(filtered_roidb)
-  print('Filtered {} roidb entries: {} -> {}'.format(num - num_after,
+  logging.info('Filtered {} roidb entries: {} -> {}'.format(num - num_after,
                                                      num, num_after))
   return filtered_roidb
 
@@ -365,6 +371,6 @@ def train_net(network, imdb, roidb, valroidb, output_dir, tb_dir,
   with tf.Session(config=tfconfig) as sess:
     sw = SolverWrapper(sess, network, imdb, roidb, valroidb, output_dir, tb_dir,
                        pretrained_model=pretrained_model)
-    print('Solving...')
+    logging.info('Solving...')
     sw.train_model(sess, max_iters)
-    print('done solving')
+

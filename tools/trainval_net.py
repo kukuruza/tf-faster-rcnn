@@ -11,6 +11,7 @@ import _init_paths
 from model.train_val import get_training_roidb, train_net
 from model.config import cfg, cfg_from_file, cfg_from_list, get_output_dir, get_output_tb_dir
 from datasets.factory import get_imdb
+from utils.loggers import setup_logging
 import datasets.imdb
 import os.path as op
 import argparse
@@ -25,33 +26,34 @@ from nets.res101 import Resnet101
 
 
 def parse_args(arg_list):
-  """
-  Parse input arguments
-  """
   parser = argparse.ArgumentParser(description='Train a Faster R-CNN network')
   parser.add_argument('--imdb', dest='imdb_name',
-            help='dataset to train on',
+            help='dataset name to train on',
             default='vehicle', type=str)
-  parser.add_argument('--db_path',
+  parser.add_argument('--train_db_path',
             help='full path to .db file',
             required=True)
-  parser.add_argument('--db_val_path',
+  parser.add_argument('--val_db_path',
             help='full path to .db file',
             required=True)
-  parser.add_argument('--out_model_dir', required=True,
-            help='relative to "output"')
+  parser.add_argument('--model_dir', required=True,
+            help='path to output model dir')
   parser.add_argument('--iters', dest='max_iters',
             help='number of iterations to train',
             default=70000, type=int)
   parser.add_argument('--architecture', dest='net',
             choices=['vgg16', 'res101'],
-            default='res101', type=str)
+            default='vgg16', type=str)
   parser.add_argument('--set', dest='set_cfgs',
             help='set config keys', default=None,
             nargs=argparse.REMAINDER)
-  parser.add_argument('--logging_level', default=20, type=int)
 
-  args = parser.parse_args(arg_list)
+  # parse_known_args since the function can be called from a pipeline
+  args, _ = parser.parse_known_args(arg_list)
+  
+  logging.info('Called with args:')
+  logging.info(args)
+
   return args
 
 
@@ -69,12 +71,8 @@ def combined_roidb(imdb_name, db_path, cache_path):
     return imdb, roidb
 
 
-def main(args_list):
-  args = parse_args(args_list)
-  logging.basicConfig(level=args.logging_level)
-
-  print('Called with args:')
-  print(args)
+def main(arg_list):
+  args = parse_args(arg_list)
 
   if args.net == 'vgg16':
     cfg_file = 'experiments/cfgs/vgg16.yml'
@@ -86,24 +84,26 @@ def main(args_list):
     cfg_from_list(args.set_cfgs)
 
   print('Using config:')
-  pprint.pprint(cfg)
+  print(pprint.format(cfg))
 
   np.random.seed(cfg.RNG_SEED)
 
+  rel_model_dir = op.relpath(args.model_dir, 'output')
+
   # output directory where the models are saved
-  output_dir = get_output_dir(args.out_model_dir)
+  output_dir = get_output_dir(rel_model_dir)
   print('Output will be saved to `{:s}`'.format(output_dir))
 
   # tensorboard directory where he summaries are saved during training
-  tb_dir = get_output_tb_dir(args.out_model_dir)
+  tb_dir = get_output_tb_dir(rel_model_dir)
   print('TensorFlow summaries will be saved to `{:s}`'.format(tb_dir))
 
   # train set
-  imdb, roidb = combined_roidb(args.imdb_name, args.db_path, op.join(output_dir, 'train.pkl'))
+  imdb, roidb = combined_roidb(args.imdb_name, args.train_db_path, op.join(output_dir, 'train.pkl'))
   print('{:d} roidb entries'.format(len(roidb)))
 
   # also add the validation set, but with no flipping images
-  _, valroidb = combined_roidb(args.imdb_name, args.db_val_path, op.join(output_dir, 'val.pkl'))
+  _, valroidb = combined_roidb(args.imdb_name, args.val_db_path, op.join(output_dir, 'val.pkl'))
   print('{:d} validation roidb entries'.format(len(valroidb)))
 
   if args.net == 'vgg16':
@@ -119,7 +119,9 @@ def main(args_list):
             pretrained_model=pretrained_model,
             max_iters=args.max_iters)
 
+
 if __name__ == '__main__':
-  args_list = sys.argv[1:]
-  main(args_list)
+  arg_list = sys.argv[1:]
+  arg_list = setup_logging(arg_list)
+  main(arg_list)
 

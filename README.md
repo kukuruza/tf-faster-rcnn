@@ -120,14 +120,16 @@ If you find it useful, the ``data/cache`` folder created on my side is also shar
 
 ### Train your own model (new)  
 1. Train (and test, evaluation)
-  ```Shell
+  ```Python
   python tools/trainval_net.py \
-    --db_path     $CITY_DATA_PATH/faster-rcnn/572-Feb23-09h/mar15-25real/mar15-25real.db \
-    --db_val_path $CITY_DATA_PATH/faster-rcnn/572-Feb23-09h/labelled-test-e02.db \
-    --out_model_dir 572-Feb23-09h/mar15-25real \
+    --db_path      $CITY_DATA_PATH/faster-rcnn/572-Feb23-09h/mar15-25real/mar15-25real.db \
+    --db_val_path  $CITY_DATA_PATH/faster-rcnn/572-Feb23-09h/labelled-test-e02.db \
+    --model_dir    572-Feb23-09h/mar15-25real \
     --architecture vgg16 \
     --set TRAIN.MAX_SIZE 704 TRAIN.SCALES [480] TRAIN.CAR_CONSTRAINT "width > 25"
+  ```
 
+  ```Shell
   ./experiments/scripts/train_faster_rcnn.sh [GPU_ID] [DATASET] [NET]
   # GPU_ID is the GPU you want to test on
   # NET in {vgg16, res101} is the network arch to use
@@ -144,13 +146,15 @@ If you find it useful, the ``data/cache`` folder created on my side is also shar
   ```
   
 3. Test and evaluate
-  ```Shell
+  ```Python
   python tools/test_net.py \
     --gt_db_path $CITY_DATA_PATH/faster-rcnn/572-Feb23-09h/labelled-test-e02.db \
-    --in_model_file output/572-Feb23-09h/mar15-25real/vgg16_iter_010000.ckpt \
+    --model_file output/572-Feb23-09h/mar15-25real/vgg16_iter_010000.ckpt \
     --architecture vgg16 \
     --set TRAIN.MAX_SIZE 704 TRAIN.SCALES [480] TEST.CAR_CONSTRAINT "width > 30"
+  ```
 
+  ```Shell
   ./experiments/scripts/test_faster_rcnn.sh [GPU_ID] [DATASET] [NET]
   # GPU_ID is the GPU you want to test on
   # NET in {vgg16, res101} is the network arch to use

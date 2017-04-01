@@ -119,14 +119,17 @@ class vehicle(imdb):
 
   def evaluate_detections(self, c_det):
       aps = []
+      recalls = []
+      precisions = []
       for clsid, cls_name in enumerate(self._classes):
           if cls_name == '__background__':
               continue
           rec, prec, ap = dbEvalClass(c_gt=self.c, c_det=c_det, 
-                                    params={'ovthresh': 0.5, 
-                                            'car_constraint': cfg.TEST.CAR_CONSTRAINT})
+                  params={'ovthresh': 0.5, 'car_constraint': cfg.TEST.CAR_CONSTRAINT})
           #rec, prec, ap = eval_class (self.c, c_det, classname=None, ovthresh=0.5)
           aps += [ap]
+          recalls.append(rec)
+          precisions.append(prec)
           print('AP for {} = {:.4f}'.format(cls_name, ap))
       print('Mean AP = {:.4f}'.format(np.mean(aps)))
       print('~~~~~~~~')
@@ -135,5 +138,8 @@ class vehicle(imdb):
           print('{:.3f}'.format(ap))
       print('{:.3f}'.format(np.mean(aps)))
       print('~~~~~~~~')
-      return np.mean(aps)
+      mAP        = np.around(np.mean(aps), decimals=4)
+      recalls    = np.around(recalls, decimals=4)
+      precisions = np.around(precisions, decimals=4)
+      return mAP, recalls, precisions
 

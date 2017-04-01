@@ -15,11 +15,14 @@ except ImportError:
 import sys, os
 import math
 import sqlite3
+from tqdm import trange, tqdm
+import logging
 
 from utils.timer import Timer
 from utils.cython_nms import nms, nms_new
 from utils.boxes_grid import get_boxes_grid
 from utils.blob import im_list_to_blob
+from utils.loggers import print_to_tqdm
 
 from model.config import cfg, get_output_dir
 from model.bbox_transform import clip_boxes, bbox_transform_inv
@@ -144,14 +147,15 @@ def apply_nms(all_boxes, thresh):
       nms_boxes[cls_ind][im_ind] = dets[keep, :].copy()
   return nms_boxes
 
-def test_net(sess, net, imdb, out_db_path=':memory:', max_per_image=100, thresh=0.05):
+def test_net(sess, net, imdb, out_db_path=':memory:', 
+             max_per_image=100, thresh=0.05, results_path=None):
+  
   np.random.seed(cfg.RNG_SEED)
   """Test a Fast R-CNN network on an image database."""
   num_images = imdb.num_images()
   all_boxes = [[[] for _ in range(num_images)]
          for _ in range(imdb.num_classes)]
 
-  #output_dir = get_output_dir(imdb, weights_filename)
   # timers
   _t = {'im_detect' : Timer(), 'misc' : Timer()}
 
@@ -159,11 +163,15 @@ def test_net(sess, net, imdb, out_db_path=':memory:', max_per_image=100, thresh=
 
   if os.path.exists(out_db_path):
     os.remove(out_db_path)
+  if not os.path.exists(os.path.dirname(out_db_path)):
+    os.makedirs(os.path.dirname(out_db_path))
   conn_out = sqlite3.connect(out_db_path)
   createDb(conn_out)
   c_out = conn_out.cursor()
 
-  for imid, imagefile in enumerate(imdb.imagefiles):
+  t = tqdm(imdb.imagefiles)
+  for imid, imagefile in enumerate(t):
+
     imdb.c.execute('SELECT * FROM images WHERE imagefile=?', imagefile)
     image_entry = imdb.c.fetchone()
 
@@ -200,14 +208,14 @@ def test_net(sess, net, imdb, out_db_path=':memory:', max_per_image=100, thresh=
              roi[0], roi[1], roi[2]-roi[0], roi[3]-roi[1])
         c_out.execute('INSERT INTO cars(%s) VALUES (?,?,?,?,?,?,?)' % s, v)
 
-    print ('im_detect: {:d}/{:d} {:.3f}s. Found {:d} objects.' \
-          .format(imid+1, num_images, _t['im_detect'].average_time, len(cls_dets)))
+    print_to_tqdm(t, 'Avg.time {:.3f}s. Found {:d} objects.' \
+                      .format(_t['im_detect'].average_time, len(cls_dets)))
 
   conn_out.commit()
 
   print ('Evaluating detections')
-  ap = imdb.evaluate_detections(c_det=c_out)
+  mAP, recalls, precisions = imdb.evaluate_detections(c_det=c_out)
 
   conn_out.close()
-  return ap
+  return mAP, recalls, precisions
 
