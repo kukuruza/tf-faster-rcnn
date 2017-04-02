@@ -226,11 +226,6 @@ class SolverWrapper(object):
         else:
           sess.run(tf.assign(lr, cfg.TRAIN.LEARNING_RATE))
 
-    log = logging.getLogger (__name__)
-    log.setLevel (logging.INFO)
-    from utils.loggers import TqdmLoggingHandler
-    log.addHandler (TqdmLoggingHandler ())
-
     timer = Timer()
     last_summary_time = time.time()
 
@@ -276,12 +271,15 @@ class SolverWrapper(object):
         snapshot_path, np_path = self.snapshot(sess, iter)
         np_paths.append(np_path)
         ss_paths.append(snapshot_path)
+        logging.debug('Making a snapshot at %s' % snapshot_path)
+        print_to_tqdm('snapshot: %s' % snapshot_path, msg_len=100)
 
         # Remove the old snapshots if there are too many
         if len(np_paths) > cfg.TRAIN.SNAPSHOT_KEPT:
           to_remove = len(np_paths) - cfg.TRAIN.SNAPSHOT_KEPT
           for c in range(to_remove):
             nfile = np_paths[0]
+            logging.debug('Removing np snapshot %s' % nfile)
             os.remove(str(nfile))
             np_paths.remove(nfile)
 
@@ -289,6 +287,7 @@ class SolverWrapper(object):
           to_remove = len(ss_paths) - cfg.TRAIN.SNAPSHOT_KEPT
           for c in range(to_remove):
             sfile = ss_paths[0]
+            logging.debug('Removing ss snapshot %s' % nfile)
             # To make the code compatible to earlier versions of Tensorflow,
             # where the naming tradition for checkpoints are different
             if os.path.exists(str(sfile)):

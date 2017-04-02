@@ -106,6 +106,6 @@ def main(arg_list):
 
 if __name__ == '__main__':
   arg_list = sys.argv[1:]
-  arg_list = setup_logging(arg_list)
+  setup_logging(arg_list)
   main(arg_list)
 
