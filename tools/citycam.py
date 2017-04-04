@@ -70,6 +70,8 @@ def get_detected_name(test_db, model_path):
 def parse_args(arg_list):
   parser = argparse.ArgumentParser(description='Execute train/test pipeline for Citycam.')
   parser.add_argument('--gpu', default=0, type=int)
+  parser.add_argument('--pretrained_model', required=False, 
+                      help='for training from a saved model')
   parser.add_argument('--train_db',  required=False)
   parser.add_argument('--test_db',   required=True)
   parser.add_argument('--model_dir', required=True)
@@ -100,6 +102,14 @@ def main(args_list):
     # train_db_path
     assert args.train_db is not None
     train_db_path = get_train_db_path(args.train_db)
+
+    # restore from pretrained model
+    if args.pretrained_model is not None:
+      model_files = glob('%s*' % args.pretrained_model)
+      assert len(model_files) > 0, 'no files: %s' % args.pretrained_model)
+      for model_file in sorted(model_files):
+        logging.info('linking pretrained model file %s' % model_files)
+        os.symlink(model_file, op.join(model_dir, op.basename(model_file))
 
     trainval_net (['--train_db_path', train_db_path,
                    '--val_db_path',   test_db_path,
