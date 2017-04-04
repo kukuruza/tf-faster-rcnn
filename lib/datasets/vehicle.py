@@ -23,7 +23,9 @@ class vehicle(imdb):
 
     # option to use only a fraction of the dataset
     self.max_images = max_images
-    logging.info ('max_images is %s' % str(self.max_images))
+    if max_images is not None:
+      # TODO: future functinality
+      logging.info ('max_images is %s' % str(self.max_images))
     
     self.c.execute('SELECT imagefile FROM images')
     self.imagefiles = self.c.fetchall()
@@ -130,14 +132,8 @@ class vehicle(imdb):
           aps += [ap]
           recalls.append(rec)
           precisions.append(prec)
-          print('AP for {} = {:.4f}'.format(cls_name, ap))
-      print('Mean AP = {:.4f}'.format(np.mean(aps)))
-      print('~~~~~~~~')
-      print('Results:')
-      for ap in aps:
-          print('{:.3f}'.format(ap))
-      print('{:.3f}'.format(np.mean(aps)))
-      print('~~~~~~~~')
+          logging.info('AP for {} = {:.4f}'.format(cls_name, ap))
+      logging.info('Mean AP = {:.4f}'.format(np.mean(aps)))
       mAP        = np.around(np.mean(aps), decimals=4)
       recalls    = np.around(recalls, decimals=4)
       precisions = np.around(precisions, decimals=4)

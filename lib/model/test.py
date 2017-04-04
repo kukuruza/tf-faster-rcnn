@@ -24,7 +24,7 @@ from utils.boxes_grid import get_boxes_grid
 from utils.blob import im_list_to_blob
 from utils.loggers import print_to_tqdm
 
-from model.config import cfg, get_output_dir
+from model.config import cfg
 from model.bbox_transform import clip_boxes, bbox_transform_inv
 
 sys.path.insert(0, os.path.join(os.getenv('CITY_PATH'), 'src'))
@@ -148,7 +148,7 @@ def apply_nms(all_boxes, thresh):
   return nms_boxes
 
 def test_net(sess, net, imdb, out_db_path=':memory:', 
-             max_per_image=100, thresh=0.05, results_path=None):
+             max_per_image=100, thresh=0.05, do_test=False):
   
   np.random.seed(cfg.RNG_SEED)
   """Test a Fast R-CNN network on an image database."""
@@ -181,9 +181,7 @@ def test_net(sess, net, imdb, out_db_path=':memory:',
 
     im = reader.imread(imagefile)
 
-    _t['im_detect'].tic()
     scores, boxes = im_detect(sess, net, im)
-    _t['im_detect'].toc()
 
     for clsid in xrange(1, imdb.num_classes):  # clsid = 0 is background
 
@@ -208,14 +206,14 @@ def test_net(sess, net, imdb, out_db_path=':memory:',
              roi[0], roi[1], roi[2]-roi[0], roi[3]-roi[1])
         c_out.execute('INSERT INTO cars(%s) VALUES (?,?,?,?,?,?,?)' % s, v)
 
-    print_to_tqdm(t, 'Avg.time {:.3f}s. Found {:d} objects.' \
-                      .format(_t['im_detect'].average_time, len(cls_dets)))
+    print_to_tqdm(t, 'Found %d objects' % len(cls_dets))
 
   conn_out.commit()
 
-  print ('Evaluating detections')
-  mAP, recalls, precisions = imdb.evaluate_detections(c_det=c_out)
+  if do_test: 
+    logging.info ('Evaluating detections')
+    mAP, recalls, precisions = imdb.evaluate_detections(c_det=c_out)
 
   conn_out.close()
-  return mAP, recalls, precisions
+  return
 

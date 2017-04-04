@@ -11,7 +11,7 @@ import _init_paths
 from model.test import test_net
 from model.config import cfg, cfg_from_file, cfg_from_list
 from datasets.factory import get_imdb
-from utils.loggers import setup_logging
+from utils.citycam_setup import setup_logging, setup_config
 import argparse
 import logging
 import pprint
@@ -34,41 +34,21 @@ def parse_args(arg_list):
             required=True)
   parser.add_argument('--out_db_path', default=':memory:',
             help='filepath of output database. Default is in-memory')
-  parser.add_argument('--results_path',
-            help='if specified, results will be appended to that file')
   parser.add_argument('--num_dets', dest='max_per_image',
             help='max number of detections per image',
             default=100, type=int)
   parser.add_argument('--architecture', dest='net',
             choices=['vgg16', 'res101'],
             default='vgg16', type=str)
-  parser.add_argument('--set', dest='set_cfgs',
-            help='set config keys', default=None,
-            nargs=argparse.REMAINDER)
 
-  # parse_known_args since the function can be called from a pipeline
   args, _ = parser.parse_known_args(arg_list)
-
-  print('Called with args:')
-  print(args)
+  logging.debug('test_net was called with args: %s' % args)
 
   return args
 
 
 def main(arg_list):
   args = parse_args(arg_list)
-
-  if args.net == 'vgg16':
-    cfg_file = 'experiments/cfgs/vgg16.yml'
-  elif args.net == 'res101':
-    cfg_file = 'experiments/cfgs/res101.yml'
-  
-  cfg_from_file(cfg_file)
-  if args.set_cfgs is not None:
-    cfg_from_list(args.set_cfgs)
-
-  #print('Using config:')
-  #pprint.pprint(cfg)
 
   imdb = get_imdb(args.imdb_name, args.gt_db_path)
 
@@ -98,8 +78,7 @@ def main(arg_list):
   logging.info('Loaded.')
 
   test_net(sess, net, imdb, args.out_db_path, 
-           max_per_image=args.max_per_image,
-           results_path=args.results_path)
+           max_per_image=args.max_per_image)
 
   sess.close()
 
@@ -107,5 +86,6 @@ def main(arg_list):
 if __name__ == '__main__':
   arg_list = sys.argv[1:]
   setup_logging(arg_list)
+  setup_config(arg_list)
   main(arg_list)
 

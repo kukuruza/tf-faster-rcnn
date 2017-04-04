@@ -9,9 +9,9 @@ from __future__ import print_function
 
 import _init_paths
 from model.train_val import get_training_roidb, train_net
-from model.config import cfg, cfg_from_file, cfg_from_list, get_output_dir, get_output_tb_dir
+from model.config import cfg, cfg_from_file, cfg_from_list
 from datasets.factory import get_imdb
-from utils.loggers import setup_logging
+from utils.citycam_setup import setup_logging, setup_config
 import datasets.imdb
 import os.path as op
 import argparse
@@ -44,21 +44,16 @@ def parse_args(arg_list):
   parser.add_argument('--architecture', dest='net',
             choices=['vgg16', 'res101'],
             default='vgg16', type=str)
-  parser.add_argument('--set', dest='set_cfgs',
-            help='set config keys', default=None,
-            nargs=argparse.REMAINDER)
 
-  # parse_known_args since the function can be called from a pipeline
   args, _ = parser.parse_known_args(arg_list)
-  
-  logging.info('Called with args:')
-  logging.info(args)
+  logging.debug('trainval_net was called with args: %s' % args)
 
   return args
 
 
 def combined_roidb(imdb_name, db_path, cache_path):
     def get_roidb(imdb_name, db_path, cache_path):
+        logging.info('db_path: %s' % db_path)
         imdb = get_imdb(imdb_name, db_path)
         logging.info('Loaded dataset `%s` for training' % imdb.name)
         imdb.set_proposal_method(cfg.TRAIN.PROPOSAL_METHOD)
@@ -74,37 +69,19 @@ def combined_roidb(imdb_name, db_path, cache_path):
 def main(arg_list):
   args = parse_args(arg_list)
 
-  if args.net == 'vgg16':
-    cfg_file = 'experiments/cfgs/vgg16.yml'
-  elif args.net == 'res101':
-    cfg_file = 'experiments/cfgs/res101.yml'
-
-  cfg_from_file(cfg_file)
-  if args.set_cfgs is not None:
-    cfg_from_list(args.set_cfgs)
-
-  print('Using config:')
-  print(pprint.format(cfg))
-
   np.random.seed(cfg.RNG_SEED)
 
-  rel_model_dir = op.relpath(args.model_dir, 'output')
-
-  # output directory where the models are saved
-  output_dir = get_output_dir(rel_model_dir)
-  print('Output will be saved to `{:s}`'.format(output_dir))
-
   # tensorboard directory where he summaries are saved during training
-  tb_dir = get_output_tb_dir(rel_model_dir)
-  print('TensorFlow summaries will be saved to `{:s}`'.format(tb_dir))
+  tb_dir = op.join('tensorboard', op.relpath(args.model_dir, 'output'))
+  logging.info('TensorFlow summaries will be saved to `%s`' % tb_dir)
 
   # train set
-  imdb, roidb = combined_roidb(args.imdb_name, args.train_db_path, op.join(output_dir, 'train.pkl'))
-  print('{:d} roidb entries'.format(len(roidb)))
+  imdb, roidb = combined_roidb(args.imdb_name, args.train_db_path, op.join(args.model_dir, 'train.pkl'))
+  logging.info('%d roidb entries' % len(roidb))
 
   # also add the validation set, but with no flipping images
-  _, valroidb = combined_roidb(args.imdb_name, args.val_db_path, op.join(output_dir, 'val.pkl'))
-  print('{:d} validation roidb entries'.format(len(valroidb)))
+  _, valroidb = combined_roidb(args.imdb_name, args.val_db_path, op.join(args.model_dir, 'val.pkl'))
+  logging.info('%d validation roidb entries' % len(valroidb))
 
   if args.net == 'vgg16':
     pretrained_model = 'data/imagenet_weights/vgg16.ckpt'
@@ -115,7 +92,7 @@ def main(arg_list):
   else:
     raise NotImplementedError
   assert op.exists(pretrained_model), 'pretrained model does not exist: %s' % pretrained_model
-  train_net(net, imdb, roidb, valroidb, output_dir, tb_dir,
+  train_net(net, imdb, roidb, valroidb, args.model_dir, tb_dir,
             pretrained_model=pretrained_model,
             max_iters=args.max_iters)
 
@@ -123,5 +100,6 @@ def main(arg_list):
 if __name__ == '__main__':
   arg_list = sys.argv[1:]
   setup_logging(arg_list)
+  setup_config(arg_list)
   main(arg_list)
 

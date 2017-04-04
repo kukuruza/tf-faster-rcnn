@@ -24,6 +24,9 @@ __C.TRAIN.LEARNING_RATE = 0.001
 # Momentum
 __C.TRAIN.MOMENTUM = 0.9
 
+# Optimizer
+__C.TRAIN.OPTIMIZER = 'MomentumOptimizer'
+
 # Weight decay, for regularization
 __C.TRAIN.WEIGHT_DECAY = 0.0005
 
@@ -266,35 +269,6 @@ __C.POOLING_MODE = 'crop'
 # Size of the pooled region after RoI pooling
 __C.POOLING_SIZE = 7
 
-
-def get_experiment(train_db):
-  '''
-  train_db_path can be a dir, or a .db file path.
-  If a dir, the .db file is supposed to be in this dir (see code).
-  '''
-  if train_db.endswith('.db'):
-    return osp.dirname(train_db)
-  else:
-    return train_db
-
-
-def get_output_dir(out_name):
-    """Make output path in the root of output.
-    If the directory does not exist, it is created.
-    """
-    outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'output', out_name))
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    return outdir
-
-def get_output_tb_dir(out_name):
-    """Make output path in the root of output.
-    If the directory does not exist, it is created.
-    """
-    outdir = osp.abspath(osp.join(__C.ROOT_DIR, 'tensorboard', out_name))
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    return outdir
 
 def _merge_a_into_b(a, b):
   """Merge config dictionary a into config dictionary b, clobbering the

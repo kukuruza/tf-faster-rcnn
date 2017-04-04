@@ -15,7 +15,7 @@ from __future__ import print_function
 import _init_paths
 from model.config import cfg, cfg_from_file, cfg_from_list
 from datasets.factory import get_imdb
-from utils.loggers import setup_logging
+from utils.citycam_setup import setup_logging, setup_config
 import os, sys, argparse
 import numpy as np
 import logging
@@ -24,9 +24,6 @@ import pprint
 
 
 def parse_args(arg_list):
-  """
-  Parse input arguments
-  """
   parser = argparse.ArgumentParser(description='Re-evaluate results')
   parser.add_argument('--gt_db_path',
             help='full path to ground truth .db file',
@@ -38,20 +35,9 @@ def parse_args(arg_list):
   parser.add_argument('--imdb', dest='imdb_name',
             help='dataset to test',
             default='vehicle', type=str)
-  parser.add_argument('--architecture', dest='net',
-            choices=['vgg16', 'res101'],
-            default='vgg16', type=str)
-  #parser.add_argument('--comp', dest='comp_mode', help='competition mode',
-  #          action='store_true')
-  parser.add_argument('--set', dest='set_cfgs',
-            help='set config keys', default=None,
-            nargs=argparse.REMAINDER)
 
-  # parse_known_args since the function can be called from a pipeline
   args, _ = parser.parse_known_args(arg_list)
-
-  print('Called with args:')
-  print(args)
+  logging.debug('reval called with args: %s' % args)
 
   return args
 
@@ -59,23 +45,11 @@ def parse_args(arg_list):
 def main(arg_list):
   args = parse_args(arg_list)
 
-  if args.net == 'vgg16':
-    cfg_file = 'experiments/cfgs/vgg16.yml'
-  elif args.net == 'res101':
-    cfg_file = 'experiments/cfgs/res101.yml'
-  
-  cfg_from_file(cfg_file)
-  if args.set_cfgs is not None:
-    cfg_from_list(args.set_cfgs)
-
-  print('Using config:')
-  pprint.pprint(cfg)
-
   imdb = get_imdb(args.imdb_name, args.gt_db_path)
 
   conn_out = sqlite3.connect(args.out_db_path)
   c_out = conn_out.cursor()
-  print ('Evaluating detections')
+  logging.info ('Evaluating detections')
   mAP, recalls, precisions = imdb.evaluate_detections(c_det=c_out)
   conn_out.close()
 
@@ -94,5 +68,6 @@ def main(arg_list):
 if __name__ == '__main__':
   arg_list = sys.argv[1:]
   setup_logging(arg_list)
+  setup_config(arg_list)
   main(arg_list)
 

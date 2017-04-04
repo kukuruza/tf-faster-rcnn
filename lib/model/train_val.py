@@ -115,8 +115,11 @@ class SolverWrapper(object):
       loss = layers['total_loss']
       # Set learning rate and momentum
       lr = tf.Variable(cfg.TRAIN.LEARNING_RATE, trainable=False)
-      momentum = cfg.TRAIN.MOMENTUM
-      self.optimizer = tf.train.MomentumOptimizer(lr, momentum)
+      if cfg.TRAIN.OPTIMIZER == 'MomentumOptimizer':
+        momentum = cfg.TRAIN.MOMENTUM
+        self.optimizer = tf.train.MomentumOptimizer(lr, momentum)
+      elif cfg.TRAIN.OPTIMIZER == 'AdamOptimizer':
+        self.optimizer = tf.train.AdamOptimizer(lr)
 
       # Compute the gradients wrt the loss
       gvs = self.optimizer.compute_gradients(loss)
@@ -160,7 +163,7 @@ class SolverWrapper(object):
 
     if lsf == 0:
       # Fresh train directly from VGG weights
-      print('Loading initial model weights from {:s}'.format(self.pretrained_model))
+      logging.info('Loading initial model weights from {:s}'.format(self.pretrained_model))
       variables = tf.global_variables()
 
       # Only initialize the variables that were not initialized when the graph was built
@@ -179,11 +182,11 @@ class SolverWrapper(object):
 
       restorer = tf.train.Saver(variables_to_restore)
       restorer.restore(sess, self.pretrained_model)
-      print('Loaded.')
+      logging.info('Loaded.')
       sess.run(tf.assign(lr, cfg.TRAIN.LEARNING_RATE))
       # A temporary solution to fix the vgg16 issue from conv weights to fc weights
       if self.net._arch == 'vgg16':
-        print('Converting VGG16 fc layers..')
+        logging.info('Converting VGG16 fc layers..')
         with tf.device("/cpu:0"):
           fc6_conv = tf.get_variable("fc6_conv", [7, 7, 512, 4096], trainable=False)
           fc7_conv = tf.get_variable("fc7_conv", [1, 1, 4096, 4096], trainable=False)
@@ -200,9 +203,8 @@ class SolverWrapper(object):
       ss_paths = [ss_paths[-1]]
       np_paths = [np_paths[-1]]
 
-      print('Restorining model snapshots from {:s}'.format(sfiles[-1]))
+      logging.info('Restorining model snapshots from {:s}'.format(sfiles[-1]))
       self.saver.restore(sess, str(sfiles[-1]))
-      print('Restored.')
       # Needs to restore the other hyperparameters/states for training, (TODO xinlei) I have
       # tried my best to find the random states so that it can be recovered exactly
       # However the Tensorflow state is currently not available
@@ -261,10 +263,7 @@ class SolverWrapper(object):
 
       # Display training information
       if iter % (cfg.TRAIN.DISPLAY) == 0:
-#        print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
-#              '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
-#              (iter, max_iters, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
-        print_to_tqdm (t, 'lr: %f, speed: %.3fs / iter' % (lr.eval(), timer.average_time))
+        print_to_tqdm (t, 'lr: %f, total_loss: %.6f' % (lr.eval(), total_loss))
 
       if iter % cfg.TRAIN.SNAPSHOT_ITERS == 0:
         last_snapshot_iter = iter
@@ -272,7 +271,7 @@ class SolverWrapper(object):
         np_paths.append(np_path)
         ss_paths.append(snapshot_path)
         logging.debug('Making a snapshot at %s' % snapshot_path)
-        print_to_tqdm('snapshot: %s' % snapshot_path, msg_len=100)
+        print_to_tqdm(t, 'snapshot: %s' % snapshot_path, msg_len=100)
 
         # Remove the old snapshots if there are too many
         if len(np_paths) > cfg.TRAIN.SNAPSHOT_KEPT:
