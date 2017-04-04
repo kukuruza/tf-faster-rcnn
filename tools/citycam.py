@@ -7,6 +7,7 @@ from trainval_net import main as trainval_net
 from test_net import main as test_net
 from reval import main as reval
 from utils.loggers import setup_logging, setup_config
+from utils.timer import Timer
 from model.config import cfg
 
 import logging
@@ -72,8 +73,8 @@ def parse_args(arg_list):
   parser.add_argument('--train_db',  required=False)
   parser.add_argument('--test_db',   required=True)
   parser.add_argument('--model_dir', required=True)
-  parser.add_argument('--do', nargs='+', choices=['train', 'test', 'eval'], required=True,
-            help='perform training, or testing, or both')
+  parser.add_argument('--do', required=True,
+                      nargs='+', choices=['train', 'test', 'eval', 'email'])
   parser.add_argument('--logging_level', default=20, type=int)
 
   args, args_list_remaining = parser.parse_known_args(arg_list)
@@ -81,6 +82,8 @@ def parse_args(arg_list):
 
 
 def main(args_list):
+  timer = Timer()
+  timer.tic()
   args, args_list_remaining = parse_args(arg_list)
 
   # set GPU
@@ -147,8 +150,20 @@ def main(args_list):
         mAPs[model_path][car_constraint] = mAP
     pprint.pprint (mAPs)
 
+  if 'email' in args.do:
+
+    from utils.notifications import send_simple_message
+    title = 'tf-faster-rcnn: %s complete' % model_dir
+    body = 'Called with arguments: %s\n\n' % pprint.pformat(vars(args)) \
+         + 'Complete in %s sec' % str(timer.toc())
+    logging.debug('email title: %s' % title)
+    logging.debug('email body:\n%s' % body)
+    send_simple_message(title, body)
+
+
 if __name__ == '__main__':
   arg_list = sys.argv[1:]
   setup_logging(arg_list)
   setup_config(arg_list)
   main(arg_list)
+

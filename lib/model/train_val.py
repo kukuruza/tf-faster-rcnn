@@ -55,8 +55,8 @@ class SolverWrapper(object):
     # Store the model snapshot
     filename = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:06d}'.format(iter) + '.ckpt'
     filename = os.path.join(self.output_dir, filename)
+    logging.debug('Making a snapshot at %s' % filename)
     self.saver.save(sess, filename)
-    print('Wrote snapshot to: {:s}'.format(filename))
 
     # Also store some meta information, random state, etc.
     nfilename = cfg.TRAIN.SNAPSHOT_PREFIX + '_iter_{:06d}'.format(iter) + '.pkl'
@@ -237,6 +237,7 @@ class SolverWrapper(object):
       # Learning rate
       if iter == cfg.TRAIN.STEPSIZE + 1:
         # Add snapshot here before reducing the learning rate
+        print_to_tqdm(t, 'snapshot at LR step: %s' % os.basename(snapshot_path))
         self.snapshot(sess, iter)
         sess.run(tf.assign(lr, cfg.TRAIN.LEARNING_RATE * cfg.TRAIN.GAMMA))
 
@@ -263,15 +264,15 @@ class SolverWrapper(object):
 
       # Display training information
       if iter % (cfg.TRAIN.DISPLAY) == 0:
-        print_to_tqdm (t, 'lr: %f, total_loss: %.6f' % (lr.eval(), total_loss))
+        print_to_tqdm (t, 'lr: %f, total_loss: %.6f' % 
+                (lr.eval(), total_loss))
 
       if iter % cfg.TRAIN.SNAPSHOT_ITERS == 0:
         last_snapshot_iter = iter
         snapshot_path, np_path = self.snapshot(sess, iter)
         np_paths.append(np_path)
         ss_paths.append(snapshot_path)
-        logging.debug('Making a snapshot at %s' % snapshot_path)
-        print_to_tqdm(t, 'snapshot: %s' % snapshot_path, msg_len=100)
+        print_to_tqdm(t, 'snapshot: %s' % op.basename(snapshot_path))
 
         # Remove the old snapshots if there are too many
         if len(np_paths) > cfg.TRAIN.SNAPSHOT_KEPT:

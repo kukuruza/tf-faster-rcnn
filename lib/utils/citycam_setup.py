@@ -6,7 +6,7 @@ import pprint
 from model.config import cfg, cfg_from_file, cfg_from_list
 
 
-def print_to_tqdm(t, msg, msg_len=40):
+def print_to_tqdm(t, msg, msg_len=50):
   msg = msg.ljust(msg_len)
   t.set_description(msg)
   t.refresh()
@@ -53,7 +53,7 @@ def setup_logging(arg_list):
 
   # init the main logger
   logger = logging.getLogger()
-  logger.setLevel(level=args.logging_level)
+  logger.setLevel(level=logging.DEBUG)
 
   # we will write to screen with user logging level
   ch = logging.StreamHandler()
