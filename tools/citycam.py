@@ -6,7 +6,7 @@ import _init_paths
 from trainval_net import main as trainval_net
 from test_net import main as test_net
 from reval import main as reval
-from utils.loggers import setup_logging, setup_config
+from utils.citycam_setup import setup_logging, setup_config
 from utils.timer import Timer
 from model.config import cfg
 
@@ -76,17 +76,19 @@ def parse_args(arg_list):
   parser.add_argument('--test_db',   required=True)
   parser.add_argument('--model_dir', required=True)
   parser.add_argument('--do', required=True,
-                      nargs='+', choices=['train', 'test', 'eval', 'email'])
-  parser.add_argument('--logging_level', default=20, type=int)
+                      nargs='*', choices=['train', 'test', 'eval', 'email'])
 
-  args, args_list_remaining = parser.parse_known_args(arg_list)
-  return args, args_list_remaining
+  args, arg_list_remaining = parser.parse_known_args(arg_list)
+  return args, arg_list_remaining
 
 
-def main(args_list):
+def main(arg_list):
+  setup_logging(arg_list)
+  arg_list = setup_config(arg_list)
+
   timer = Timer()
   timer.tic()
-  args, args_list_remaining = parse_args(arg_list)
+  args, arg_list_remaining = parse_args(arg_list)
 
   # set GPU
   os.putenv('CUDA_VISIBLE_DEVICES', str(args.gpu))
@@ -106,15 +108,17 @@ def main(args_list):
     # restore from pretrained model
     if args.pretrained_model is not None:
       model_files = glob('%s*' % args.pretrained_model)
-      assert len(model_files) > 0, 'no files: %s' % args.pretrained_model)
+      assert len(model_files) > 0, 'no files: %s' % args.pretrained_model
       for model_file in sorted(model_files):
-        logging.info('linking pretrained model file %s' % model_files)
-        os.symlink(model_file, op.join(model_dir, op.basename(model_file))
+        logging.info('linking pretrained model file %s' % model_file)
+        pretrained_model_link = op.join(model_dir, op.basename(model_file))
+        if not op.exists(pretrained_model_link):
+          os.symlink(op.abspath(model_file), pretrained_model_link)
 
     trainval_net (['--train_db_path', train_db_path,
                    '--val_db_path',   test_db_path,
                    '--model_dir',     model_dir] +
-                  list(args_list_remaining))
+                  list(arg_list_remaining))
 
   # find all models
   logging.info ('Looking for pattern %s' % op.join(model_dir, '*.ckpt.index'))
@@ -133,7 +137,7 @@ def main(args_list):
       mAP = test_net(['--out_db_path',   out_db_path,
                       '--gt_db_path',    test_db_path,
                       '--model_path',    model_path] +
-                      list(args_list))
+                      list(arg_list))
 
   if 'eval' in args.do:
 
@@ -150,13 +154,13 @@ def main(args_list):
         fid.write('test_db_path: %s\n' % test_db_path)
 
       mAPs[model_path] = {}
-      for i,car_constraint in enumerate(['width > 25', 'width > 30', 'width > 35']):
+      for i,car_constraint in enumerate(['width > 25', 'width > 30']):
         cfg.TEST.CAR_CONSTRAINT = car_constraint
         mAP = reval   (['--out_db_path',   out_db_path,
                         '--results_path',  results_path,
                         '--model_path',    model_path,
                         '--gt_db_path',    test_db_path] +
-                       list(args_list))
+                       list(arg_list))
         mAPs[model_path][car_constraint] = mAP
     pprint.pprint (mAPs)
 
@@ -166,6 +170,8 @@ def main(args_list):
     title = 'tf-faster-rcnn: %s complete' % model_dir
     body = 'Called with arguments: %s\n\n' % pprint.pformat(vars(args)) \
          + 'Complete in %s sec' % str(timer.toc())
+    if 'eval' in args.do:
+      body += pprint.pformat(mAPs)
     logging.debug('email title: %s' % title)
     logging.debug('email body:\n%s' % body)
     send_simple_message(title, body)
@@ -173,7 +179,5 @@ def main(args_list):
 
 if __name__ == '__main__':
   arg_list = sys.argv[1:]
-  setup_logging(arg_list)
-  setup_config(arg_list)
   main(arg_list)
 

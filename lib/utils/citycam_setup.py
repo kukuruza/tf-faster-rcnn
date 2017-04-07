@@ -23,7 +23,7 @@ def setup_config(arg_list):
   parser.add_argument('--set', dest='set_cfgs',
             help='set config keys', default=None,
             nargs=argparse.REMAINDER)
-  args, _ = parser.parse_known_args(arg_list)
+  args, args_list_remaining = parser.parse_known_args(arg_list)
 
   if args.net == 'vgg16':
     cfg_file = 'experiments/cfgs/vgg16.yml'
@@ -35,6 +35,8 @@ def setup_config(arg_list):
     cfg_from_list(args.set_cfgs)
 
   logging.debug(pprint.pformat(cfg))
+
+  return args_list_remaining + ['--architecture', args.net]
 
 
 def setup_logging(arg_list):
@@ -51,22 +53,30 @@ def setup_logging(arg_list):
   if not op.isdir(args.model_dir):
     os.makedirs(args.model_dir)
 
-  # init the main logger
+  # get the main logger
   logger = logging.getLogger()
   logger.setLevel(level=logging.DEBUG)
 
-  # we will write to screen with user logging level
-  ch = logging.StreamHandler()
-  ch.setLevel(level=args.logging_level)
-  ch.setFormatter(logging.Formatter("%(message)s"))
-  logger.addHandler(ch)
+  logging.debug('had %d logger handlers' % len(logger.handlers))
+  for handler in logger.handlers:
 
-  # we will write everything from DEBUG up to a file
+    if isinstance(handler, logging.FileHandler):
+      handler.stream.close()
+      logger.removeHandler(handler)
+
+    if isinstance(handler, logging.StreamHandler):
+      handler.setLevel(level=args.logging_level)
+      handler.setFormatter(logging.Formatter("%(message)s"))
+      #logger.addHandler(ch)
+
+  # now FileHandlers are removed, and StreamHandlers are configured. Add a new FileHandler
   log_path = op.join(args.model_dir, 'log.txt')
   ch = logging.FileHandler(log_path)
+  # we will write everything from DEBUG up to a file
   ch.setLevel(logging.DEBUG)
   ch.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
   logger.addHandler(ch)
   
+  logging.debug('now have %d logger handlers' % len(logger.handlers))
   logging.info('log file is %s' % log_path)
 

@@ -22,7 +22,7 @@ from utils.timer import Timer
 from utils.cython_nms import nms, nms_new
 from utils.boxes_grid import get_boxes_grid
 from utils.blob import im_list_to_blob
-from utils.loggers import print_to_tqdm
+from utils.citycam_setup import print_to_tqdm
 
 from model.config import cfg
 from model.bbox_transform import clip_boxes, bbox_transform_inv

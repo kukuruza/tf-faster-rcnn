@@ -36,7 +36,7 @@ def parse_args(arg_list):
             help='dataset to test',
             default='vehicle', type=str)
 
-  args, _ = parser.parse_known_args(arg_list)
+  args = parser.parse_args(arg_list)
   logging.debug('reval called with args: %s' % args)
 
   return args
@@ -68,6 +68,6 @@ def main(arg_list):
 if __name__ == '__main__':
   arg_list = sys.argv[1:]
   setup_logging(arg_list)
-  setup_config(arg_list)
+  arg_list = setup_config(arg_list)
   main(arg_list)
 

@@ -69,7 +69,7 @@ __C.TRAIN.SCALES = (600,)
 __C.TRAIN.MAX_SIZE = 1000
 
 # Images to use per minibatch
-__C.TRAIN.IMS_PER_BATCH = 2
+__C.TRAIN.IMS_PER_BATCH = 1
 
 # Minibatch size (number of regions of interest [ROIs])
 __C.TRAIN.BATCH_SIZE = 128
@@ -154,7 +154,7 @@ __C.TRAIN.RPN_POSITIVE_WEIGHT = -1.0
 # For COCO, setting USE_ALL_GT to False will exclude boxes that are flagged as ''iscrowd''
 __C.TRAIN.USE_ALL_GT = True
 
-__C.TRAIN.CAR_CONSTRAINT = '1'
+__C.TRAIN.CAR_CONSTRAINT = 'width > 25'
 
 #
 # Testing options

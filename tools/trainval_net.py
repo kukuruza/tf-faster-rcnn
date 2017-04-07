@@ -45,7 +45,7 @@ def parse_args(arg_list):
             choices=['vgg16', 'res101'],
             default='vgg16', type=str)
 
-  args, _ = parser.parse_known_args(arg_list)
+  args = parser.parse_args(arg_list)
   logging.debug('trainval_net was called with args: %s' % args)
 
   return args
@@ -82,6 +82,9 @@ def main(arg_list):
   # also add the validation set, but with no flipping images
   _, valroidb = combined_roidb(args.imdb_name, args.val_db_path, op.join(args.model_dir, 'val.pkl'))
   logging.info('%d validation roidb entries' % len(valroidb))
+
+  # reset after potentially previous use of tf 
+  tf.reset_default_graph()
 
   if args.net == 'vgg16':
     pretrained_model = 'data/imagenet_weights/vgg16.ckpt'

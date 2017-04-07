@@ -11,7 +11,7 @@ from model.config import cfg
 import roi_data_layer.roidb as rdl_roidb
 from roi_data_layer.layer import RoIDataLayer
 from utils.timer import Timer
-from utils.loggers import print_to_tqdm
+from utils.citycam_setup import print_to_tqdm
 try:
   import cPickle as pickle
 except ImportError:
@@ -210,17 +210,17 @@ class SolverWrapper(object):
       # However the Tensorflow state is currently not available
       with open(str(nfiles[-1]), 'rb') as fid:
         st0 = pickle.load(fid)
-        cur = pickle.load(fid)
-        perm = pickle.load(fid)
-        cur_val = pickle.load(fid)
-        perm_val = pickle.load(fid)
+        #cur = pickle.load(fid)
+        #perm = pickle.load(fid)
+        #cur_val = pickle.load(fid)
+        #perm_val = pickle.load(fid)
         last_snapshot_iter = pickle.load(fid)
 
         np.random.set_state(st0)
-        self.data_layer._cur = cur
-        self.data_layer._perm = perm
-        self.data_layer_val._cur = cur_val
-        self.data_layer_val._perm = perm_val
+        #self.data_layer._cur = cur
+        #self.data_layer._perm = perm
+        #self.data_layer_val._cur = cur_val
+        #self.data_layer_val._perm = perm_val
 
         # Set the learning rate, only reduce once
         if last_snapshot_iter > cfg.TRAIN.STEPSIZE:
@@ -237,7 +237,7 @@ class SolverWrapper(object):
       # Learning rate
       if iter == cfg.TRAIN.STEPSIZE + 1:
         # Add snapshot here before reducing the learning rate
-        print_to_tqdm(t, 'snapshot at LR step: %s' % os.basename(snapshot_path))
+        print_to_tqdm(t, 'snapshot at LR step: %s' % op.basename(snapshot_path))
         self.snapshot(sess, iter)
         sess.run(tf.assign(lr, cfg.TRAIN.LEARNING_RATE * cfg.TRAIN.GAMMA))
 
@@ -370,6 +370,6 @@ def train_net(network, imdb, roidb, valroidb, output_dir, tb_dir,
   with tf.Session(config=tfconfig) as sess:
     sw = SolverWrapper(sess, network, imdb, roidb, valroidb, output_dir, tb_dir,
                        pretrained_model=pretrained_model)
-    logging.info('Solving...')
+    logging.debug('Solving...')
     sw.train_model(sess, max_iters)
 
